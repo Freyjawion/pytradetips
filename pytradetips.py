@@ -4,6 +4,7 @@
 import tkinter as tk
 import requests
 import json
+import settings
 
 
 class PyTradeTips(tk.Frame):
@@ -79,24 +80,57 @@ class PyTradeTips(tk.Frame):
         }
 
     def item_json(self, iteminfo):
-        data = {"query": {"status": {"option": "online"},"name": '',"type":'' , "stats": [{"type": "and", "filters": []}]}, "sort": {"price": "asc"}}
+        data = {'query': {'status': {'option': 'online'}, 'stats': [
+            {'type': 'and', 'filters': []}]}, 'sort': {'price': 'asc'}}
         if iteminfo['Name']:
             data['query']['name'] = iteminfo['Name']
         if iteminfo['Type']:
             data['query']['type'] = iteminfo['Type']
-        data = {"query":{"status":{"option":"any"},"name": iteminfo['Name'],"type":iteminfo['Type'] ,"stats":[{"type":"and","filters":[]}]},"filters":{"trade_filters":{"filters":{"indexed":{"option":"1day"}},"disabled":False}},"sort":{"price":"asc"}}
         return data
 
     def update_text(self, text):
         self.tooltip.config(text=text)
 
     def item_query(self, data):
-        url = 'https://www.pathofexile.com/api/trade/search/Metamorph'
+        url = settings.SEARCH_API+settings.LEAGUE
         response = requests.post(url, json=data)
-        if response.status_code == 200:
-            pass
+        if response.status_code != 200:
+            print('Search Error ' + str(response.status_code))
+            return
+
+        itemid = response.json()['id']
+        list = response.json()['result']
+        url = settings.FETCH_URL.format(','.join(list[:settings.MAX]), itemid)
+
+        result = requests.get(url)
+        if result.status_code != 200:
+            print('Fetch Error ' + str(result.status_code))
+            return
+
+        if data['query']['name']:
+            title = data['query']['name'] + ' ' + data['query']['type']
         else:
-            pass
+            title = data['query']['type']
+
+        title += ' Total:' + str(response.json()['total'])
+        body = []
+        print('')
+        print('Total:' + str(response.json()['total']))
+        infolist = result.json()['result']
+        for info in infolist:
+            tooltip = 'ID: %s Price %s' % (
+                info['listing']['account']['lastCharacterName'], self.process_dict(info['listing']))
+            print(tooltip)
+            body.append(self.process_dict(info['listing']))
+
+    def process_dict(self,s):
+        if s['price']:
+            single_price = s['price']['amount']
+            unit = s['price']['currency']
+            price_info = str(single_price) + ' ' + unit
+            return price_info
+        else:
+            return 'No Price'
 
 
 if __name__ == "__main__":
