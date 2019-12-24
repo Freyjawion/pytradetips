@@ -3,11 +3,51 @@
 
 import tkinter as tk
 import requests
-import json
 import settings
 
 
-class PyTradeTips(tk.Frame):
+dict_rarity = {
+    '传奇':'Unique',
+    '稀有':'Rare',
+    '魔法':'Magic',
+    '普通':'Normal',
+    '命运卡':'Card',
+    '通货':'Currency',
+    '宝石':'Gem'
+}
+
+class ItemInfo():
+    def __init__(self):
+        self.Name = ''
+        self.Type = ''
+        self.Category = ''
+        self.Item_level = 0
+        self.Rarity = ''
+        self.Gem_level = 0
+        self.Quality = 0
+        self.Map_tier = 0
+        self.Sockets = ''
+        self.Links = 0
+        self.Blighted_map = False
+        self.Shaper_influence = False
+        self.Elder_influence = False
+        self.Crusader_influence = False
+        self.Redeemer_influence = False
+        self.Hunter_influence = False
+        self.Warlord_influence = False
+        self.Synthesised  = False
+        self.Corrupted = False
+
+class AutoVivification(dict):
+    """Implementation of perl's autovivification feature."""
+    def __getitem__(self, item):
+        try:
+            return dict.__getitem__(self, item)
+        except KeyError:
+            value = self[item] = type(self)()
+            return value
+
+class PyTooltip(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
         tk.Frame.__init__(self, parent)
         self.parent = parent
@@ -19,14 +59,16 @@ class PyTradeTips(tk.Frame):
         self.tooltip = tk.Label(self, text="Searching...", font=(
             "default", 8), fg="black", justify="left")
         self.tooltip.pack(side="top", fill="both", expand=True)
-        self.tooltip.bind("<Enter>", self.hide_window)
+        self.tooltip.bind("<Enter>", self.hide_tooltip)
 
-        self.last_content = self.parent.clipboard_get()
-        self.parent.after(100, self.watch_clipboard)
+        self.last_content = ''
+        self.parent.clipboard_clear()
+        self.parent.clipboard_append('')
         self.parent.withdraw()
-        self.watch_clipboard()
+        self.parent.after(100, self.watch_clipboard)
 
-    def show_window(self, event="none"):
+    def show_tooltip(self, event="none"):
+        self.parent.withdraw()
         self.parent.focus_set()
         self.parent.wm_attributes("-topmost", 1)
         self.parent.overrideredirect(True)
@@ -40,7 +82,7 @@ class PyTradeTips(tk.Frame):
         y = self.parent.winfo_pointery()
         return x, y
 
-    def hide_window(self, event):
+    def hide_tooltip(self, event):
         self.parent.withdraw()
         self.parent.after(100, self.watch_clipboard)
 
@@ -48,93 +90,260 @@ class PyTradeTips(tk.Frame):
         try:
             content = self.parent.clipboard_get()
             if content != self.last_content:
-                self.last_content = content
-                if self.is_item(content):
-                    self.show_window()
-                    self.item_query(self.item_json(self.item_parser(content)))
-                    self.update_text('update')
+                self.last_content = ''
+                self.parent.clipboard_clear()
+                self.parent.clipboard_append('')
+                item = item_parser(content)
+                if item:
+                    self.show_tooltip()
+                    text = item_keyword(item)
+                    self.update_tooltip(text)
+                    text += item_query(item)
+                    self.update_tooltip(text)
+                    print(text)
+                    print()
+                    self.parent.after(100, self.watch_clipboard)
                 else:
                     self.parent.after(100, self.watch_clipboard)
             else:
                 self.parent.after(100, self.watch_clipboard)
         except tk.TclError:
-            pass
+            self.parent.after(100, self.watch_clipboard)
 
-    def is_item(self, iteminfo):
-        if iteminfo.startswith('Rarity') and len(iteminfo.split('--------')) == 7:
-            return True
-        else:
-            return False
-
-    def item_parser(self, iteminfo):
-        info = iteminfo.split('--------\n')
-        item_rarity = info[0].split('\n')[0].split(':')[1].strip()
-        item_name = info[0].split('\n')[1]
-        item_type = info[0].split('\n')[2]
-        item_level = int(info[3].split('\n')[0].split(':')[1].strip())
-        return {
-            'Name': item_name,
-            'Rarity': item_rarity,
-            'Type': item_type,
-            'iLevel': item_level
-        }
-
-    def item_json(self, iteminfo):
-        data = {'query': {'status': {'option': 'online'}, 'stats': [
-            {'type': 'and', 'filters': []}]}, 'sort': {'price': 'asc'}}
-        if iteminfo['Name']:
-            data['query']['name'] = iteminfo['Name']
-        if iteminfo['Type']:
-            data['query']['type'] = iteminfo['Type']
-        return data
-
-    def update_text(self, text):
+    def update_tooltip(self, text):
         self.tooltip.config(text=text)
 
-    def item_query(self, data):
-        url = settings.SEARCH_API+settings.LEAGUE
-        response = requests.post(url, json=data)
-        if response.status_code != 200:
-            print('Search Error ' + str(response.status_code))
-            return
 
-        itemid = response.json()['id']
-        list = response.json()['result']
-        url = settings.FETCH_URL.format(','.join(list[:settings.MAX]), itemid)
-
-        result = requests.get(url)
-        if result.status_code != 200:
-            print('Fetch Error ' + str(result.status_code))
-            return
-
-        if data['query']['name']:
-            title = data['query']['name'] + ' ' + data['query']['type']
+def is_item(content):
+    if content.startswith('Rarity')  or content.startswith('稀有度'):
+        if '--------' in content:
+            if len(content.split('--------')[0].splitlines()) in [2,3]:
+                return True
+            else:
+                return False
         else:
-            title = data['query']['type']
+            return False
+    else:
+        return False
 
-        title += ' Total:' + str(response.json()['total'])
-        body = []
-        print('')
-        print('Total:' + str(response.json()['total']))
-        infolist = result.json()['result']
-        for info in infolist:
-            tooltip = 'ID: %s Price %s' % (
-                info['listing']['account']['lastCharacterName'], self.process_dict(info['listing']))
-            print(tooltip)
-            body.append(self.process_dict(info['listing']))
-
-    def process_dict(self,s):
-        if s['price']:
-            single_price = s['price']['amount']
-            unit = s['price']['currency']
-            price_info = str(single_price) + ' ' + unit
-            return price_info
+def item_parser(content):
+    try:
+        if is_item(content):
+            item = ItemInfo()
+            name = content.split('--------')[0].splitlines()
+            if content.startswith('Rarity'):
+                return ''
+            elif content.startswith('稀有度'):
+                if '(' in name[1]:
+                    item.Name = name[1][name[1].find("(")+1:name[1].find(")")]
+                else:
+                    item.Name = name[1]
+                rarity = item_translate(name[0].split(':')[1],dict_rarity)
+                if len(name) == 2:
+                    if rarity == 'Currency':
+                        item.Type = item.Name
+                        item.Name = ''
+                        item.Category = 'Currency'
+                    elif rarity == 'Card':
+                        item.Type = item.Name
+                        item.Name = ''
+                        item.Category = 'Card'
+                    elif 'Flask' in name[1]:
+                        item.Category = 'Flask'
+                        item.Rarity = rarity
+                        if item.Rarity == 'Magic':
+                            temp = []
+                            for i in name[1].split(' '):
+                                if '(' in i:
+                                    temp.append(i.split('(')[1])
+                                elif ')' in i:
+                                    temp.append(i.split(')')[0])
+                                else:
+                                    temp.append(i)
+                            item.Name = ' '.join(temp)
+                    elif '预言' in name[1]:
+                        item.Category = 'Prophecy'
+                    elif 'Scarab' in name[1]:
+                        item.Type = item.Name
+                        item.Name = ''
+                        item.Category = 'Scarab'
+                    elif rarity == 'Gem':
+                        item.Name = ''
+                        item.Category = 'Gem'
+                        for line in content.splitlines():
+                            if '英文名' in line:
+                                item.Type = line[line.find('：')+1:line.find('】')].strip()
+                            elif line.startswith('等级') and not item.Gem_level:
+                                item.Gem_level = int(line.split(':')[1].strip())
+                            elif line.startswith('品质'):
+                                item.Quality = int(line[line.find('+')+1:line.find('%')].strip())
+                            elif line == '已腐化':
+                                item.Corrupted = True
+                    elif 'Map' in name[1]:
+                        item.Category = 'Map'
+                        for line in content.splitlines():
+                            if line.startswith('地图等阶'):
+                                item.Map_tier = int(line.split(':')[1].strip())
+                            elif line == '已腐化':
+                                item.Corrupted = True
+                elif len(name) == 3:
+                    item.Rarity = rarity
+                    if not rarity == 'Unique':
+                        item.Name = ''
+                    if '(' in name[2]:
+                        item.Type = name[2][name[2].find("(")+1:name[2].find(")")]
+                    else:
+                        item.Type = name[2]
+                    for line in content.splitlines():
+                        if line.startswith('物品等级'):
+                            item.Item_level = int(line.split(':')[1].strip())
+                        elif line.startswith('宝石孔'):
+                            item.Sockets = line.split(':')[1].strip()
+                            item.Links = item_links(item.Sockets)
+                        elif line.startswith('已合成'):
+                            item.Synthesised = True
+                        elif line == '已腐化':
+                            item.Corrupted = True
+                        elif line == '总督军物品':
+                            item.Warlord_influence = True
+            return item
         else:
-            return 'No Price'
+            return ''
+    except:
+        return ''
 
+def item_keyword(item):
+    keyword = []
+    if item.Name:
+        keyword.append(item.Name)
+    if item.Type:
+        keyword.append(item.Type)
+    if item.Item_level and not item.Rarity == 'Unique':
+        keyword.append('Item Level : {}'.format(str(item.Item_level)))
+    if item.Gem_level:
+        keyword.append('Gem Level : {}'.format(str(item.Gem_level)))
+    if item.Map_tier:
+        keyword.append('Map Tier : {}'.format(str(item.Map_tier)))
+    if item.Quality:
+        keyword.append('Quality : {}%'.format(str(item.Quality)))
+    if item.Sockets:
+        if item.Links >4:
+            keyword.append('Sockets : {} , {}Links'.format(item.Sockets,str(item.Links)))
+    if item.Shaper_influence:
+        keyword.append('Shaper Item')
+    if item.Elder_influence:
+        keyword.append('Elder Item')
+    if item.Crusader_influence:
+        keyword.append('Crusader Item')
+    if item.Redeemer_influence:
+        keyword.append('Redeemer Item')
+    if item.Hunter_influence:
+        keyword.append('Hunter Item')
+    if item.Warlord_influence:
+        keyword.append('Warlord Item')
+    if item.Corrupted:
+        keyword.append('Corrupted')
+    return '\n'.join(keyword)
+
+def item_links(sockets):
+    return max(len(i) for i in sockets[1::2].split(' '))+1
+
+def item_translate(item_name,item_dict):
+    return item_dict.get(item_name.strip())
+
+def item_json(item):
+    data = AutoVivification()
+    data['query']['status']['option'] = 'online'
+    data['query']['stats'][0]['type'] = 'and'
+    data['query']['stats'][0]['filters'] = []
+    data['sort']['price'] = 'asc'
+
+    if item.Category == 'Map':
+        data['query']['type']['option'] = item.Name
+        data['query']['type']['discriminator'] = 'warfortheatlas'
+        data['query']['filters']['map_filters']['map_tier']['min'] = item.Map_tier
+        data['query']['filters']['map_filters']['map_tier']['max'] = item.Map_tier
+    elif item.Category == 'Flask' and item.Rarity == 'Magic':
+        data['query']['term'] = item.Name
+    elif item.Category == 'Gem':
+        if item.Type:
+            data['query']['type'] = item.Type
+        if item.Gem_level:
+            data['query']['filters']['misc_filters']['filters']['gem_level']['min'] = item.Gem_level
+        if item.Quality:
+            data['query']['filters']['misc_filters']['filters']['quality']['min'] = item.Quality
+    else:
+        if item.Name:
+            data['query']['name'] = item.Name
+        if item.Type:
+            data['query']['type'] = item.Type
+        if item.Item_level and not item.Rarity == 'Unique':
+            data['query']['filters']['misc_filters']['filters']['ilvl']['min'] = item.Item_level
+            data['query']['filters']['type_filters']['rarity']['option'] = 'nonunique'
+
+
+    if item.Corrupted:
+        data['query']['filters']['misc_filters']['filters']['corrupted']['option'] = True
+
+    if item.Shaper_influence:
+        data['query']['filters']['misc_filters']['filters']['shaper_item']['option'] = True
+
+    if item.Elder_influence:
+        data['query']['filters']['misc_filters']['filters']['elder_item']['option'] = True
+
+    if item.Crusader_influence:
+        data['query']['filters']['misc_filters']['filters']['crusader_item']['option'] = True
+
+    if item.Redeemer_influence:
+        data['query']['filters']['misc_filters']['filters']['redeemer_item']['option'] = True
+
+    if item.Hunter_influence:
+        data['query']['filters']['misc_filters']['filters']['hunter_item']['option'] = True
+
+    if item.Warlord_influence:
+        data['query']['filters']['misc_filters']['filters']['warlord_item']['option'] = True
+
+    return data
+
+def item_query(item):
+    temp = ['\n']
+    url_query = settings.SEARCH_API+settings.LEAGUE
+    data = item_json(item)
+    response_query = requests.post(url_query, json=data)
+    if response_query.status_code == 200:
+        item_id = response_query.json()['id']
+        item_result = response_query.json()['result']
+        temp.append(item_id)
+        temp.append('Total: {}'.format(str(response_query.json()['total'])))
+        url_fetch = settings.FETCH_URL.format(','.join(item_result[:settings.MAX]), item_id)
+        response_fetch = requests.get(url_fetch)
+        if response_fetch.status_code == 200:
+            for price in response_fetch.json()['result']:
+                temp.append(get_price(price['listing']))
+        else:
+            if response_fetch.json()['error']['message']:
+                temp.append(response_fetch.json()['error']['message'])
+            else:
+                temp.append('Fetch Error')
+    else:
+        if response_query.json()['error']['message']:
+            temp.append(response_query.json()['error']['message'])
+        else:
+            temp.append('Query Error')
+    return '\n'.join(temp)
+
+
+def get_price(s):
+    if s['price']:
+        amount = s['price']['amount']
+        currency = s['price']['currency']
+        price = str(amount) + ' ' + currency
+        return price
+    else:
+        return 'No Price'
 
 if __name__ == "__main__":
     print('CTRL + C to copy item infomation ...')
     root = tk.Tk()
-    PyTradeTips(root)
+    PyTooltip(root)
     root.mainloop()
