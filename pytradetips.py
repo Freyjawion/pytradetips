@@ -28,6 +28,8 @@ class ItemInfo():
         self.Map_tier = 0
         self.Sockets = ''
         self.Links = 0
+        self.Shaped_map = False
+        self.Elder_map = False
         self.Blighted_map = False
         self.Shaper_influence = False
         self.Elder_influence = False
@@ -187,6 +189,9 @@ def item_parser(content):
                                 item.Map_tier = int(line.split(':')[1].strip())
                             elif line == '已腐化':
                                 item.Corrupted = True
+                    elif '未鉴定' in content:
+                        item.Category = 'unIdentified'
+                        return ''
                 elif len(name) == 3:
                     item.Rarity = rarity
                     if not rarity == 'Unique':
@@ -207,6 +212,8 @@ def item_parser(content):
                             item.Corrupted = True
                         elif line == '总督军物品':
                             item.Warlord_influence = True
+                        elif line == '审判官物品':
+                            item.Redeemer_influence = True
             return item
         else:
             return ''
@@ -281,26 +288,20 @@ def item_json(item):
         if item.Item_level and not item.Rarity == 'Unique':
             data['query']['filters']['misc_filters']['filters']['ilvl']['min'] = item.Item_level
             data['query']['filters']['type_filters']['rarity']['option'] = 'nonunique'
-
-
+    if item.Links > 4:
+        data['query']['filters']['socket_filters']['filters']['links']['min'] = item.Links
     if item.Corrupted:
         data['query']['filters']['misc_filters']['filters']['corrupted']['option'] = True
-
     if item.Shaper_influence:
         data['query']['filters']['misc_filters']['filters']['shaper_item']['option'] = True
-
     if item.Elder_influence:
         data['query']['filters']['misc_filters']['filters']['elder_item']['option'] = True
-
     if item.Crusader_influence:
         data['query']['filters']['misc_filters']['filters']['crusader_item']['option'] = True
-
     if item.Redeemer_influence:
         data['query']['filters']['misc_filters']['filters']['redeemer_item']['option'] = True
-
     if item.Hunter_influence:
         data['query']['filters']['misc_filters']['filters']['hunter_item']['option'] = True
-
     if item.Warlord_influence:
         data['query']['filters']['misc_filters']['filters']['warlord_item']['option'] = True
 
@@ -319,8 +320,8 @@ def item_query(item):
         url_fetch = settings.FETCH_URL.format(','.join(item_result[:settings.MAX]), item_id)
         response_fetch = requests.get(url_fetch)
         if response_fetch.status_code == 200:
-            for price in response_fetch.json()['result']:
-                temp.append(get_price(price))
+            for result in response_fetch.json()['result']:
+                temp.append(get_price(result))
         else:
             if response_fetch.json()['error']['message']:
                 temp.append(response_fetch.json()['error']['message'])
@@ -334,10 +335,10 @@ def item_query(item):
     return '\n'.join(temp)
 
 
-def get_price(price):
-    if price['listing']['price']:
-        amount = price['listing']['price']['amount']
-        currency = price['listing']['price']['currency']
+def get_price(result):
+    if result['listing']['price']:
+        amount = result['listing']['price']['amount']
+        currency = result['listing']['price']['currency']
         return '{} {}'.format(str(amount),currency)
     else:
         return 'No Price'
