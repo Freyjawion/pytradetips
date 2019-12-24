@@ -90,11 +90,12 @@ class PyTooltip(tk.Frame):
         try:
             content = self.parent.clipboard_get()
             if content != self.last_content:
-                self.last_content = ''
-                self.parent.clipboard_clear()
-                self.parent.clipboard_append('')
+                self.last_content = content
                 item = item_parser(content)
                 if item:
+                    self.last_content = ''
+                    self.parent.clipboard_clear()
+                    self.parent.clipboard_append('')
                     self.show_tooltip()
                     text = item_keyword(item)
                     self.update_tooltip(text)
@@ -319,7 +320,7 @@ def item_query(item):
         response_fetch = requests.get(url_fetch)
         if response_fetch.status_code == 200:
             for price in response_fetch.json()['result']:
-                temp.append(get_price(price['listing']))
+                temp.append(get_price(price))
         else:
             if response_fetch.json()['error']['message']:
                 temp.append(response_fetch.json()['error']['message'])
@@ -333,12 +334,11 @@ def item_query(item):
     return '\n'.join(temp)
 
 
-def get_price(s):
-    if s['price']:
-        amount = s['price']['amount']
-        currency = s['price']['currency']
-        price = str(amount) + ' ' + currency
-        return price
+def get_price(price):
+    if price['listing']['price']:
+        amount = price['listing']['price']['amount']
+        currency = price['listing']['price']['currency']
+        return '{} {}'.format(str(amount),currency)
     else:
         return 'No Price'
 
