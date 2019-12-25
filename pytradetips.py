@@ -80,7 +80,7 @@ class PyTooltip(tk.Frame):
         self.parent.wm_attributes("-topmost", 1)
         self.parent.overrideredirect(True)
         x, y = self.get_position()
-        self.parent.geometry("+{}+{}".format(x+10, y+10))
+        self.parent.geometry("+{}+{}".format(x+15, y+15))
         self.parent.update()
         self.parent.deiconify()
 
@@ -248,6 +248,8 @@ def item_parser(content):
                             item.Warlord_influence = True
                         elif line == '审判官物品':
                             item.Redeemer_influence = True
+                        elif line == '狩猎者物品':
+                            item.Hunter_influence = True
             return item
         else:
             return ''
