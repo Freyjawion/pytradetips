@@ -5,18 +5,6 @@ import tkinter as tk
 import requests
 import settings
 
-
-dict_rarity = {
-    '传奇': 'Unique',
-    '稀有': 'Rare',
-    '魔法': 'Magic',
-    '普通': 'Normal',
-    '命运卡': 'Card',
-    '通货': 'Currency',
-    '宝石': 'Gem'
-}
-
-
 class ItemInfo():
     def __init__(self):
         self.Name = ''
@@ -41,9 +29,32 @@ class ItemInfo():
         self.Synthesised = False
         self.Corrupted = False
 
+class NinjaCache():
+    def __init__(self):
+        self.Currencies = {}
+        self.Fragments = {}
+        self.Oils = {}
+        self.Incubators = {}
+        self.Scarabs = {}
+        self.Fossils = {}
+        self.Resnators = {}
+        self.Essences = {}
+        self.DivinationCards = {}
+        self.Prophecies = {}
+        self.SkillGems = {}
+        self.BaseTypes = {}
+        self.HelmetEnchants = {}
+        self.UniqueMaps = {}
+        self.Maps = {}
+        self.UniqueJewels = {}
+        self.UniqueFlasks = {}
+        self.UniqueWeapons = {}
+        self.UniqueArmours = {}
+        self.UniqueAccessories = {}
+        self.Beasts = {}
 
 class AutoVivification(dict):
-    """Implementation of perl's autovivification feature."""
+    '''Implementation of perl's autovivification feature.'''
 
     def __getitem__(self, item):
         try:
@@ -60,12 +71,12 @@ class PyTooltip(tk.Frame):
         self.initUI()
 
     def initUI(self):
-        self.pack(fill="both", expand=True, side="top")
+        self.pack(fill='both', expand=True, side='top')
 
-        self.tooltip = tk.Label(self, text="PyTooltip", font=(
-            "default", 8), fg="black", justify="left")
-        self.tooltip.pack(side="top", fill="both", expand=True)
-        self.tooltip.bind("<Enter>", self.hide_tooltip)
+        self.tooltip = tk.Label(self, text='PyTooltip', font=(
+            'default', 8), fg='black', justify='left')
+        self.tooltip.pack(side='top', fill='both', expand=True)
+        self.tooltip.bind('<Enter>', self.hide_tooltip)
 
         self.last_content = ''
         self.text = ''
@@ -74,13 +85,13 @@ class PyTooltip(tk.Frame):
         self.parent.withdraw()
         self.parent.after(100, self.watch_clipboard)
 
-    def show_tooltip(self, event="none"):
+    def show_tooltip(self, event='none'):
         self.parent.withdraw()
         self.parent.focus_set()
-        self.parent.wm_attributes("-topmost", 1)
+        self.parent.wm_attributes('-topmost', 1)
         self.parent.overrideredirect(True)
         x, y = self.get_position()
-        self.parent.geometry("+{}+{}".format(x+15, y+15))
+        self.parent.geometry('+{}+{}'.format(x+20, y+10))
         self.parent.update()
         self.parent.deiconify()
 
@@ -103,10 +114,10 @@ class PyTooltip(tk.Frame):
                     self.last_content = ''
                     self.parent.clipboard_clear()
                     self.parent.clipboard_append('')
-                    self.text = item_keyword(item)
-                    self.update_tooltip()
+                    self.get_keyword(item)
+                    self.query_ninja(item)
                     self.show_tooltip()
-                    self.parent.after(5, self.update_text, item)
+                    self.parent.after(5, self.query_trade, item)
                 else:
                     self.parent.after(100, self.watch_clipboard)
             else:
@@ -117,10 +128,24 @@ class PyTooltip(tk.Frame):
     def update_tooltip(self):
         self.tooltip.config(text=self.text)
 
-    def update_text(self, item):
-        self.text += item_query(item)
+    def get_keyword(self, item):
+        self.text = item_keyword(item)
         self.update_tooltip()
-        print(self.text)
+
+    def query_ninja(self, item):
+        text = item_query_ninja(item)
+        self.text += '\n \n'
+        self.text += text
+        self.update_tooltip()
+        print(text)
+        print()
+
+    def query_trade(self, item):
+        text = item_query_trade(item)
+        self.text += '\n \n'
+        self.text += text
+        self.update_tooltip()
+        print(text)
         print()
         self.parent.after(100, self.watch_clipboard)
 
@@ -146,7 +171,7 @@ def item_parser(content):
             if content.startswith('Rarity'):
                 return ''
             elif content.startswith('稀有度'):
-                rarity = item_translate(header[0].split(':')[1], dict_rarity)
+                rarity = item_translate(header[0].split(':')[1], settings.dict_rarity)
                 if rarity in ('Rare,Unique'):
                     name_line = header[1]
                     type_line = header[2]
@@ -156,7 +181,7 @@ def item_parser(content):
 
                 if '(' in name_line:
                     base_name = name_line[name_line.find(
-                        "(")+1:name_line.find(")")]
+                        '(')+1:name_line.find(')')]
                 else:
                     base_name = name_line
 
@@ -210,7 +235,7 @@ def item_parser(content):
                             item.Name = ''
                         if '(' in type_line:
                             item.Type = type_line[type_line.find(
-                                "(")+1:type_line.find(")")]
+                                '(')+1:type_line.find(')')]
                         else:
                             item.Type = type_line
 
@@ -355,8 +380,8 @@ def item_json(item):
     return data
 
 
-def item_query(item):
-    temp = ['\n']
+def item_query_trade(item):
+    temp = []
     url_query = settings.SEARCH_API+settings.LEAGUE
     data = item_json(item)
     response_query = requests.post(url_query, json=data)
@@ -372,7 +397,7 @@ def item_query(item):
             response_fetch = requests.get(url_fetch)
             if response_fetch.status_code == 200:
                 for result in response_fetch.json()['result']:
-                    temp.append(get_price(result))
+                    temp.append(get_price_trade(result))
             else:
                 if response_fetch.json()['error']['message']:
                     temp.append(response_fetch.json()['error']['message'])
@@ -386,7 +411,7 @@ def item_query(item):
     return '\n'.join(temp)
 
 
-def get_price(result):
+def get_price_trade(result):
     if result['listing']['price']:
         amount = result['listing']['price']['amount']
         currency = result['listing']['price']['currency']
@@ -394,8 +419,71 @@ def get_price(result):
     else:
         return 'No Price'
 
+def cache_ninja(ninja):
+    ninja.Currencies = get_json_ninja(settings.NINJA_CURRENCY)
+    ninja.Fragments = get_json_ninja(settings.NINJA_FRAGMENTS)
+    ninja.Oils = get_json_ninja(settings.NINJA_OILS)
+    ninja.Incubators = get_json_ninja(settings.NINJA_INCUBATORS)
+    ninja.Scarabs = get_json_ninja(settings.NINJA_SCARABS)
+    ninja.Fossils = get_json_ninja(settings.NINJA_FOSSILS)
+    ninja.Resnators = get_json_ninja(settings.NINJA_RESONATORS)
+    ninja.Essences = get_json_ninja(settings.NINJA_ESSENCES)
+    ninja.DivinationCards = get_json_ninja(settings.NINJA_DIVINATION_CARDS)
+    ninja.Prophecies = get_json_ninja(settings.NINJA_PROPHECIES)
+    ninja.SkillGems = get_json_ninja(settings.NINJA_SKILL_GEMS)
+    ninja.BaseTypes = get_json_ninja(settings.NINJA_BASE_TYPES)
+    ninja.HelmetEnchants = get_json_ninja(settings.NINJA_HELMET_ENCHANTS)
+    ninja.UniqueMaps = get_json_ninja(settings.NINJA_UNIQUE_MAPS)
+    ninja.Maps = get_json_ninja(settings.NINJA_MAPS)
+    ninja.UniqueJewels = get_json_ninja(settings.NINJA_UNIQUE_JEWELS)
+    ninja.UniqueFlasks = get_json_ninja(settings.NINJA_UNIQUE_FLASKS)
+    ninja.UniqueWeapons = get_json_ninja(settings.NINJA_UNIQUE_WEAPONS)
+    ninja.UniqueArmours = get_json_ninja(settings.NINJA_UNIQUE_ARMOURS)
+    ninja.UniqueAccessories = get_json_ninja(settings.NINJA_UNIQUE_ACCESSORIES)
+    ninja.Beasts = get_json_ninja(settings.NINJA_BEASTS)
+        
+    
+def get_json_ninja(fetch_url):
+    response = requests.get(fetch_url)
+    print(fetch_url)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print('Failed!!!')
+        return {}
 
-if __name__ == "__main__":
+def item_query_ninja(item):
+    if item.Category == 'Currency':
+        for i in NinjaData.Currencies['lines']:
+            if i['currencyTypeName'] == item.Type:
+                return '{} chaos'.format(i['chaosEquivalent'])
+    elif item.Category == 'Card':
+        return query_item_ninja_common(NinjaData.DivinationCards['lines'],item)
+    elif item.Category == 'Gem':
+        for i in NinjaData.SkillGems['lines']:
+            if i['name'] == item.Type and i['GemLevel'] == item.Gem_level and i['gemQuality']== item.Quality and i['Corrupted'] == item.Corrupted:
+                return '{} chaos {} exalted'.format(i['chaosValue'],i['exaltedValue'] )
+    elif item.Category == 'Prophecy':
+        return query_item_ninja_common(NinjaData.Prophecies['lines'],item)
+    elif item.Category == 'Flask':
+        return query_item_ninja_common(NinjaData.UniqueFlasks['lines'],item)
+    elif item.Category == 'Scarab':
+        pass
+    elif item.Category == 'Map':
+        pass
+    return 'Ninja not found'
+
+def query_item_ninja_common(data,item):
+    for i in data:
+        if i['name'] == item.Type:
+            return '{} chaos {} exalted'.format(i['chaosValue'],i['exaltedValue'] )
+    return 'Ninja not found'
+
+
+if __name__ == '__main__':
+    print('Get data from POE.Ninja...')
+    NinjaData = NinjaCache()
+    cache_ninja(NinjaData)
     print('CTRL + C to copy item infomation ...')
     root = tk.Tk()
     PyTooltip(root)
