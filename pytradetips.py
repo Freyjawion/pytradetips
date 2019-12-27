@@ -308,7 +308,7 @@ def item_keyword(item):
     if item.Type:
         keyword.append(item.Type)
     if item.Category == 'BaseType':
-        keyword.append('Item Level : {}'.format(min(item.Item_level,86)))
+        keyword.append('Item Level : {}'.format(min(item.Item_level, 86)))
     if item.Gem_level:
         keyword.append('Gem Level : {}'.format(item.Gem_level))
     if item.Map_tier:
@@ -372,7 +372,8 @@ def item_json(item):
         if item.Type:
             data['query']['type'] = item.Type
         if item.Category == 'BaseType':
-            data['query']['filters']['misc_filters']['filters']['ilvl']['min'] = min(item.Item_level,86)
+            data['query']['filters']['misc_filters']['filters']['ilvl']['min'] = min(
+                item.Item_level, 86)
             data['query']['filters']['type_filters']['filters']['rarity']['option'] = 'nonunique'
     if item.Links > 4:
         data['query']['filters']['socket_filters']['filters']['links']['min'] = item.Links
@@ -380,7 +381,8 @@ def item_json(item):
         data['query']['filters']['socket_filters']['filters']['sockets']['min'] = item.Sockets
     if item.Influence:
         for i in item.Influence:
-            data['query']['filters']['misc_filters']['filters']['{}_item'.format(i.lower())]['option'] = True
+            data['query']['filters']['misc_filters']['filters']['{}_item'.format(
+                i.lower())]['option'] = True
     if item.Corrupted:
         data['query']['filters']['misc_filters']['filters']['corrupted']['option'] = True
     return data
@@ -464,42 +466,55 @@ def item_query_ninja(item):
     chaos_value = 0
     exalted_value = 0
     if item.Category == 'Currency':
-        chaos_value = item_query_ninja_currency(NinjaData.Currencies['lines'], item)
+        chaos_value = item_query_ninja_currency(
+            NinjaData.Currencies['lines'], item)
     elif item.Category == 'Fragment':
-        chaos_value = item_query_ninja_currency(NinjaData.Fragments['lines'], item)
+        chaos_value = item_query_ninja_currency(
+            NinjaData.Fragments['lines'], item)
     elif item.Category == 'Oil':
-        chaos_value,exalted_value = item_query_ninja_common(NinjaData.Oils['lines'], item)
+        chaos_value, exalted_value = item_query_ninja_common(
+            NinjaData.Oils['lines'], item)
     elif item.Category == 'Incubator':
-        chaos_value,exalted_value = item_query_ninja_common(NinjaData.Incubators['lines'], item)
+        chaos_value, exalted_value = item_query_ninja_common(
+            NinjaData.Incubators['lines'], item)
     elif item.Category == 'Scarab':
-        chaos_value,exalted_value = item_query_ninja_common(NinjaData.Scarabs['lines'], item)
+        chaos_value, exalted_value = item_query_ninja_common(
+            NinjaData.Scarabs['lines'], item)
     elif item.Category == 'Fossil':
-        chaos_value,exalted_value = item_query_ninja_common(NinjaData.Fossils['lines'], item)
+        chaos_value, exalted_value = item_query_ninja_common(
+            NinjaData.Fossils['lines'], item)
     elif item.Category == 'Resonator':
-        chaos_value,exalted_value = item_query_ninja_common(NinjaData.Resonators['lines'], item)
+        chaos_value, exalted_value = item_query_ninja_common(
+            NinjaData.Resonators['lines'], item)
     elif item.Category == 'Essence':
-        chaos_value,exalted_value = item_query_ninja_common(NinjaData.Essences['lines'], item)
+        chaos_value, exalted_value = item_query_ninja_common(
+            NinjaData.Essences['lines'], item)
     elif item.Category == 'Card':
-        chaos_value,exalted_value = item_query_ninja_common(NinjaData.DivinationCards['lines'], item)
+        chaos_value, exalted_value = item_query_ninja_common(
+            NinjaData.DivinationCards['lines'], item)
     elif item.Category == 'Prophecy':
-        chaos_value,exalted_value = item_query_ninja_common(NinjaData.Prophecies['lines'], item)
+        chaos_value, exalted_value = item_query_ninja_common(
+            NinjaData.Prophecies['lines'], item)
     elif item.Category == 'Gem':
-        for i in NinjaData.SkillGems['lines']:
-            if i['name'] == item.Type and i['GemLevel'] == item.Gem_level and i['gemQuality'] == item.Quality and i['Corrupted'] == item.Corrupted:
-                return '{} chaos {} exalted'.format(i['chaosValue'], i['exaltedValue'])
+        chaos_value, exalted_value = item_query_ninja_gem(
+            NinjaData.SkillGems['lines'], item)
     elif item.Category == 'BaseType':
-        chaos_value,exalted_value = item_query_ninja_base(NinjaData.BaseTypes['lines'], item)
+        chaos_value, exalted_value = item_query_ninja_base(
+            NinjaData.BaseTypes['lines'], item)
     elif item.Category == 'HelmetEnchant':
         pass
     elif item.Category == 'Map':
-        chaos_value,exalted_value = item_query_ninja_map(NinjaData.Maps['lines'], NinjaData.UniqueMaps['lines'], item)
+        chaos_value, exalted_value = item_query_ninja_map(
+            NinjaData.Maps['lines'], NinjaData.UniqueMaps['lines'], item)
     elif item.Category == 'Flask':
-        chaos_value,exalted_value = item_query_ninja_common(NinjaData.UniqueFlasks['lines'], item)
+        chaos_value, exalted_value = item_query_ninja_common(
+            NinjaData.UniqueFlasks['lines'], item)
     elif item.Category == 'Unique':
-        chaos_value,exalted_value = item_query_ninja_unique(NinjaData.UniqueWeapons['lines'], NinjaData.UniqueArmours['lines'], NinjaData.UniqueAccessories['lines'], item)
+        unique_data = [NinjaData.UniqueWeapons['lines'], NinjaData.UniqueArmours['lines'],
+                       NinjaData.UniqueAccessories['lines'], NinjaData.UniqueJewels['lines']]
+        chaos_value, exalted_value = item_query_ninja_unique(unique_data, item)
     elif item.Category == 'Beast':
         pass
-    
     if chaos_value == 0:
         return 'Not Found'
     else:
@@ -517,7 +532,7 @@ def item_query_ninja_common(data, item):
     for i in data:
         if i['name'] == item_name:
             return i['chaosValue'], i['exaltedValue']
-    return 0,0
+    return 0, 0
 
 
 def item_query_ninja_currency(data, item):
@@ -527,39 +542,49 @@ def item_query_ninja_currency(data, item):
     return 0
 
 
+def item_query_ninja_gem(data, item):
+    if item.Quality < 20:
+        gem_quality = 0
+    else:
+        gem_quality = item.Quality
+    for i in data:
+        if i['name'] == item.Type and i['gemLevel'] == item.Gem_level and i['gemQuality'] == gem_quality and i['corrupted'] == item.Corrupted:
+            return i['chaosValue'], i['exaltedValue']
+    return 0, 0
+
+
 def item_query_ninja_base(data, item):
     if item.Item_level < 82:
-        return 0,0
+        return 0, 0
     elif item.Item_level > 85:
         item_level = 86
     else:
         item_level = item.Item_level
-
     if item.Influence:
-        if len(item.Influence)>1:
-            return 0,0
+        if len(item.Influence) > 1:
+            return 0, 0
         else:
             item_variant = item.Influence[0]
     else:
         item_variant = ''
-        
     for i in data:
         if i['name'] == item.Type and i['levelRequired'] == item_level and i['variant'] == item_variant:
-                return i['chaosValue'], i['exaltedValue']
-    return 0,0
+            return i['chaosValue'], i['exaltedValue']
+    return 0, 0
 
 
-def item_query_ninja_unique(Weapon, Armour, Accessory, item):
-    unique_data = [Weapon, Armour, Accessory]
-    if item.Links >4:
+def item_query_ninja_unique(UniqueData, item):
+    if item.Influence:
+        return 0, 0
+    if item.Links > 4:
         item_link = item.Links
     else:
         item_link = 0
-    for data in unique_data:
+    for data in UniqueData:
         for i in data:
             if i['name'] == item.Name and i['links'] == item_link:
                 return i['chaosValue'], i['exaltedValue']
-    return 0,0
+    return 0, 0
 
 
 def item_query_ninja_map(Map, UniqueMap, item):
@@ -575,7 +600,7 @@ def item_query_ninja_map(Map, UniqueMap, item):
     for i in map_data:
         if i['name'] == map_name and i['mapTier'] == item.Map_tier:
             return i['chaosValue'], i['exaltedValue']
-    return 0,0
+    return 0, 0
 
 
 def is_fragment(item_type):
