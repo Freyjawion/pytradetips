@@ -4,6 +4,8 @@
 import tkinter as tk
 import requests
 import settings
+import os
+
 
 class ItemInfo():
     def __init__(self):
@@ -29,6 +31,7 @@ class ItemInfo():
         self.Synthesised = False
         self.Corrupted = False
 
+
 class NinjaCache():
     def __init__(self):
         self.Currencies = {}
@@ -37,7 +40,7 @@ class NinjaCache():
         self.Incubators = {}
         self.Scarabs = {}
         self.Fossils = {}
-        self.Resnators = {}
+        self.Resonators = {}
         self.Essences = {}
         self.DivinationCards = {}
         self.Prophecies = {}
@@ -52,6 +55,7 @@ class NinjaCache():
         self.UniqueArmours = {}
         self.UniqueAccessories = {}
         self.Beasts = {}
+
 
 class AutoVivification(dict):
     '''Implementation of perl's autovivification feature.'''
@@ -171,7 +175,8 @@ def item_parser(content):
             if content.startswith('Rarity'):
                 return ''
             elif content.startswith('稀有度'):
-                rarity = item_translate(header[0].split(':')[1], settings.dict_rarity)
+                rarity = item_translate(header[0].split(':')[
+                                        1], settings.dict_rarity)
                 if rarity in ('Rare,Unique'):
                     name_line = header[1]
                     type_line = header[2]
@@ -190,7 +195,14 @@ def item_parser(content):
                 elif rarity == 'Currency':
                     item.Type = base_name
                     item.Name = ''
-                    item.Category = 'Currency'
+                    if 'Fossil' in item.Type:
+                        item.Category = 'Fossil'
+                    elif 'Resonator' in item.Type:
+                        item.Category = 'Resonator'
+                    elif 'Essence' in item.Type:
+                        item.Category = 'Essence'
+                    else:
+                        item.Category = 'Currency'
                 elif rarity == 'Card':
                     item.Type = base_name
                     item.Name = ''
@@ -251,8 +263,8 @@ def item_parser(content):
                         item.Category = 'Map'
                         if type_line.startswith('萎灭'):
                             item.Blighted_map = True
-                    elif '' in name_line:
-                        pass
+                    elif is_fragment(type_line):
+                        item.Category = 'Fragment'
                     for line in content.splitlines():
                         if line.startswith('物品等级:'):
                             item.Item_level = int(line.split(':')[1].strip())
@@ -340,7 +352,7 @@ def item_json(item):
         data['query']['filters']['map_filters']['filters']['map_tier']['min'] = item.Map_tier
         data['query']['filters']['map_filters']['filters']['map_tier']['max'] = item.Map_tier
         if item.Rarity == 'Unique':
-            data['query']['filters']['type_filters']['rarity']['option'] = 'unique'
+            data['query']['filters']['type_filters']['filters']['rarity']['option'] = 'unique'
         if item.Blighted_map:
             data['query']['filters']['map_filters']['filters']['map_blighted']['option'] = True
     elif item.Category == 'Flask' and item.Rarity == 'Magic':
@@ -359,7 +371,7 @@ def item_json(item):
             data['query']['type'] = item.Type
         if item.Item_level and not item.Rarity == 'Unique':
             data['query']['filters']['misc_filters']['filters']['ilvl']['min'] = item.Item_level
-            data['query']['filters']['type_filters']['rarity']['option'] = 'nonunique'
+            data['query']['filters']['type_filters']['filters']['rarity']['option'] = 'nonunique'
     if item.Links > 4:
         data['query']['filters']['socket_filters']['filters']['links']['min'] = item.Links
     if item.Corrupted:
@@ -419,6 +431,7 @@ def get_price_trade(result):
     else:
         return 'No Price'
 
+
 def cache_ninja(ninja):
     ninja.Currencies = get_json_ninja(settings.NINJA_CURRENCY)
     ninja.Fragments = get_json_ninja(settings.NINJA_FRAGMENTS)
@@ -426,7 +439,7 @@ def cache_ninja(ninja):
     ninja.Incubators = get_json_ninja(settings.NINJA_INCUBATORS)
     ninja.Scarabs = get_json_ninja(settings.NINJA_SCARABS)
     ninja.Fossils = get_json_ninja(settings.NINJA_FOSSILS)
-    ninja.Resnators = get_json_ninja(settings.NINJA_RESONATORS)
+    ninja.Resonators = get_json_ninja(settings.NINJA_RESONATORS)
     ninja.Essences = get_json_ninja(settings.NINJA_ESSENCES)
     ninja.DivinationCards = get_json_ninja(settings.NINJA_DIVINATION_CARDS)
     ninja.Prophecies = get_json_ninja(settings.NINJA_PROPHECIES)
@@ -441,8 +454,8 @@ def cache_ninja(ninja):
     ninja.UniqueArmours = get_json_ninja(settings.NINJA_UNIQUE_ARMOURS)
     ninja.UniqueAccessories = get_json_ninja(settings.NINJA_UNIQUE_ACCESSORIES)
     ninja.Beasts = get_json_ninja(settings.NINJA_BEASTS)
-        
-    
+
+
 def get_json_ninja(fetch_url):
     response = requests.get(fetch_url)
     print(fetch_url)
@@ -452,32 +465,92 @@ def get_json_ninja(fetch_url):
         print('Failed!!!')
         return {}
 
+
 def item_query_ninja(item):
     if item.Category == 'Currency':
         for i in NinjaData.Currencies['lines']:
             if i['currencyTypeName'] == item.Type:
                 return '{} chaos'.format(i['chaosEquivalent'])
+    elif item.Category == 'Fragment':
+        for i in NinjaData.Fragments['lines']:
+            if i['currencyTypeName'] == item.Type:
+                return '{} chaos'.format(i['chaosEquivalent'])
+    elif item.Category == 'Oil':
+        return query_item_ninja_common(NinjaData.Oils['lines'], item)
+    elif item.Category == 'Incubator':
+        return query_item_ninja_common(NinjaData.Incubators['lines'], item)
+    elif item.Category == 'Scarab':
+        return query_item_ninja_common(NinjaData.Scarabs['lines'], item)
+    elif item.Category == 'Fossil':
+        return query_item_ninja_common(NinjaData.Fossils['lines'], item)
+    elif item.Category == 'Resonator':
+        return query_item_ninja_common(NinjaData.Resonators['lines'], item)
+    elif item.Category == 'Essence':
+        return query_item_ninja_common(NinjaData.Essences['lines'], item)
     elif item.Category == 'Card':
-        return query_item_ninja_common(NinjaData.DivinationCards['lines'],item)
+        return query_item_ninja_common(NinjaData.DivinationCards['lines'], item)
+    elif item.Category == 'Prophecy':
+        return query_item_ninja_common(NinjaData.Prophecies['lines'], item)
     elif item.Category == 'Gem':
         for i in NinjaData.SkillGems['lines']:
-            if i['name'] == item.Type and i['GemLevel'] == item.Gem_level and i['gemQuality']== item.Quality and i['Corrupted'] == item.Corrupted:
-                return '{} chaos {} exalted'.format(i['chaosValue'],i['exaltedValue'] )
-    elif item.Category == 'Prophecy':
-        return query_item_ninja_common(NinjaData.Prophecies['lines'],item)
-    elif item.Category == 'Flask':
-        return query_item_ninja_common(NinjaData.UniqueFlasks['lines'],item)
-    elif item.Category == 'Scarab':
+            if i['name'] == item.Type and i['GemLevel'] == item.Gem_level and i['gemQuality'] == item.Quality and i['Corrupted'] == item.Corrupted:
+                return '{} chaos {} exalted'.format(i['chaosValue'], i['exaltedValue'])
+    elif item.Category == 'BaseType':
+        pass
+    elif item.Category == 'HelmetEnchant':
         pass
     elif item.Category == 'Map':
+        return query_item_ninja_map(NinjaData.Maps['lines'], NinjaData.UniqueMaps['lines'], item)
+    elif item.Category == 'Flask':
+        return query_item_ninja_common(NinjaData.UniqueFlasks['lines'], item)
+    elif item.Category == 'UniqueGear':
+        pass
+    elif item.Category == 'Beast':
         pass
     return 'Ninja not found'
 
-def query_item_ninja_common(data,item):
+
+def query_item_ninja_common(data, item):
+    if item.Type == 'Prophecy':
+        item_name = item.Name
+    else:
+        item_name = item.Type
     for i in data:
-        if i['name'] == item.Type:
-            return '{} chaos {} exalted'.format(i['chaosValue'],i['exaltedValue'] )
+        if i['name'] == item_name:
+            return '{} chaos {} exalted'.format(i['chaosValue'], i['exaltedValue'])
     return 'Ninja not found'
+
+
+def query_item_ninja_map(data, Udata, item):
+    if item.Rarity == 'Unique':
+        map_name = item.Name
+        map_data = Udata
+    else:
+        if item.Blighted_map:
+            map_name = 'Blighted {}'.format(item.Type)
+        else:
+            map_name = item.Type
+        map_data = data
+    for i in map_data:
+        if i['name'] == map_name and i['mapTier'] == item.Map_tier:
+            return '{} chaos {} exalted'.format(i['chaosValue'], i['exaltedValue'])
+    return 'Ninja not found'
+
+
+def is_fragment(item_type):
+    if (
+        'Fragment' in item_type
+        or 'Timeless' in item_type
+        or 'Breachstone' in item_type
+        or 'Sacrifice' in item_type
+        or 'Mortal' in item_type
+        or 'Key' in item_type
+        or 'Divine Vessel' in item_type
+        or 'Offering to the Goddess' in item_type
+    ):
+        return True
+    else:
+        return False
 
 
 if __name__ == '__main__':
