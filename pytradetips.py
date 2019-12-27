@@ -574,8 +574,6 @@ def item_query_ninja_base(data, item):
 
 
 def item_query_ninja_unique(UniqueData, item):
-    if item.Influence:
-        return 0, 0
     if item.Links > 4:
         item_link = item.Links
     else:
