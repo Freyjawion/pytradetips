@@ -4,7 +4,6 @@
 import tkinter as tk
 import requests
 import settings
-import os
 
 
 class ItemInfo():
@@ -17,11 +16,13 @@ class ItemInfo():
         self.Gem_level = 0
         self.Quality = 0
         self.Map_tier = 0
-        self.Sockets = ''
+        self.GemSocket = ''
         self.Links = 0
+        self.Sockets = 0
         self.Shaped_map = False
         self.Elder_map = False
         self.Blighted_map = False
+        self.Influence = []
         self.Shaper_influence = False
         self.Elder_influence = False
         self.Crusader_influence = False
@@ -265,28 +266,34 @@ def item_parser(content):
                             item.Blighted_map = True
                     elif is_fragment(type_line):
                         item.Category = 'Fragment'
+                    elif item.Rarity == 'Unique':
+                        item.Category = 'Unique'
+                    else:
+                        item.Category = 'BaseType'
+
                     for line in content.splitlines():
                         if line.startswith('物品等级:'):
                             item.Item_level = int(line.split(':')[1].strip())
                         elif line.startswith('宝石孔:'):
-                            item.Sockets = line.split(':')[1].strip()
-                            item.Links = item_links(item.Sockets)
+                            item.GemSocket = line.split(':')[1].strip()
+                            item.Sockets = item_sockets(item.GemSocket)
+                            item.Links = item_links(item.GemSocket)
                         elif line.startswith('已合成'):
                             item.Synthesised = True
                         elif line.startswith('地图等阶:'):
                             item.Map_tier = int(line.split(':')[1].strip())
+                        elif line == '塑界之物':
+                            item.Influence.append('Shaper')
+                        elif line == '长老之物':
+                            item.Influence.append('Elder')
+                        elif line == '总督军物品':
+                            item.Influence.append('Warlord')
+                        elif line == '审判官物品':
+                            item.Influence.append('Redeemer')
+                        elif line == '狩猎者物品':
+                            item.Influence.append('Hunter')
                         elif line == '已腐化':
                             item.Corrupted = True
-                        elif line == '塑界之物':
-                            item.Shaper_influence = True
-                        elif line == '长老之物':
-                            item.Elder_influence = True
-                        elif line == '总督军物品':
-                            item.Warlord_influence = True
-                        elif line == '审判官物品':
-                            item.Redeemer_influence = True
-                        elif line == '狩猎者物品':
-                            item.Hunter_influence = True
             return item
         else:
             return ''
@@ -300,39 +307,34 @@ def item_keyword(item):
         keyword.append(item.Name)
     if item.Type:
         keyword.append(item.Type)
-    if item.Item_level and not item.Rarity == 'Unique' and not item.Category:
-        keyword.append('Item Level : {}'.format(str(item.Item_level)))
+    if item.Category == 'BaseType':
+        keyword.append('Item Level : {}'.format(min(item.Item_level,86)))
     if item.Gem_level:
-        keyword.append('Gem Level : {}'.format(str(item.Gem_level)))
+        keyword.append('Gem Level : {}'.format(item.Gem_level))
     if item.Map_tier:
-        keyword.append('Map Tier : {}'.format(str(item.Map_tier)))
+        keyword.append('Map Tier : {}'.format(item.Map_tier))
     if item.Quality:
-        keyword.append('Quality : {}%'.format(str(item.Quality)))
-    if item.Sockets:
-        if item.Links > 4:
-            keyword.append('Sockets : {} , {}Links'.format(
-                item.Sockets, str(item.Links)))
+        keyword.append('Quality : {}%'.format(item.Quality))
+    if item.GemSocket:
+        if item.Links > 4 or item.Sockets == 6:
+            keyword.append('{} ,{}S {}L'.format(
+                item.GemSocket, item.Sockets, item.Links))
     if item.Blighted_map:
         keyword.append('Blighted Map')
-    if item.Shaper_influence:
-        keyword.append('Shaper Item')
-    if item.Elder_influence:
-        keyword.append('Elder Item')
-    if item.Crusader_influence:
-        keyword.append('Crusader Item')
-    if item.Redeemer_influence:
-        keyword.append('Redeemer Item')
-    if item.Hunter_influence:
-        keyword.append('Hunter Item')
-    if item.Warlord_influence:
-        keyword.append('Warlord Item')
+    if item.Influence:
+        for i in item.Influence:
+            keyword.append('{} Item'.format(i))
     if item.Corrupted:
         keyword.append('Corrupted')
     return '\n'.join(keyword)
 
 
-def item_links(sockets):
-    return max(len(i) for i in sockets[1::2].split(' '))+1
+def item_sockets(GemSocket):
+    return len(GemSocket[::2])
+
+
+def item_links(GemSocket):
+    return max(len(i) for i in GemSocket[1::2].split(' '))+1
 
 
 def item_translate(item_name, item_dict):
@@ -369,26 +371,18 @@ def item_json(item):
             data['query']['name'] = item.Name
         if item.Type:
             data['query']['type'] = item.Type
-        if item.Item_level and not item.Rarity == 'Unique':
-            data['query']['filters']['misc_filters']['filters']['ilvl']['min'] = item.Item_level
+        if item.Category == 'BaseType':
+            data['query']['filters']['misc_filters']['filters']['ilvl']['min'] = min(item.Item_level,86)
             data['query']['filters']['type_filters']['filters']['rarity']['option'] = 'nonunique'
     if item.Links > 4:
         data['query']['filters']['socket_filters']['filters']['links']['min'] = item.Links
+    if item.Sockets == 6:
+        data['query']['filters']['socket_filters']['filters']['sockets']['min'] = item.Sockets
+    if item.Influence:
+        for i in item.Influence:
+            data['query']['filters']['misc_filters']['filters']['{}_item'.format(i.lower())]['option'] = True
     if item.Corrupted:
         data['query']['filters']['misc_filters']['filters']['corrupted']['option'] = True
-    if item.Shaper_influence:
-        data['query']['filters']['misc_filters']['filters']['shaper_item']['option'] = True
-    if item.Elder_influence:
-        data['query']['filters']['misc_filters']['filters']['elder_item']['option'] = True
-    if item.Crusader_influence:
-        data['query']['filters']['misc_filters']['filters']['crusader_item']['option'] = True
-    if item.Redeemer_influence:
-        data['query']['filters']['misc_filters']['filters']['redeemer_item']['option'] = True
-    if item.Hunter_influence:
-        data['query']['filters']['misc_filters']['filters']['hunter_item']['option'] = True
-    if item.Warlord_influence:
-        data['query']['filters']['misc_filters']['filters']['warlord_item']['option'] = True
-
     return data
 
 
@@ -467,74 +461,121 @@ def get_json_ninja(fetch_url):
 
 
 def item_query_ninja(item):
+    chaos_value = 0
+    exalted_value = 0
     if item.Category == 'Currency':
-        for i in NinjaData.Currencies['lines']:
-            if i['currencyTypeName'] == item.Type:
-                return '{} chaos'.format(i['chaosEquivalent'])
+        chaos_value = item_query_ninja_currency(NinjaData.Currencies['lines'], item)
     elif item.Category == 'Fragment':
-        for i in NinjaData.Fragments['lines']:
-            if i['currencyTypeName'] == item.Type:
-                return '{} chaos'.format(i['chaosEquivalent'])
+        chaos_value = item_query_ninja_currency(NinjaData.Fragments['lines'], item)
     elif item.Category == 'Oil':
-        return query_item_ninja_common(NinjaData.Oils['lines'], item)
+        chaos_value,exalted_value = item_query_ninja_common(NinjaData.Oils['lines'], item)
     elif item.Category == 'Incubator':
-        return query_item_ninja_common(NinjaData.Incubators['lines'], item)
+        chaos_value,exalted_value = item_query_ninja_common(NinjaData.Incubators['lines'], item)
     elif item.Category == 'Scarab':
-        return query_item_ninja_common(NinjaData.Scarabs['lines'], item)
+        chaos_value,exalted_value = item_query_ninja_common(NinjaData.Scarabs['lines'], item)
     elif item.Category == 'Fossil':
-        return query_item_ninja_common(NinjaData.Fossils['lines'], item)
+        chaos_value,exalted_value = item_query_ninja_common(NinjaData.Fossils['lines'], item)
     elif item.Category == 'Resonator':
-        return query_item_ninja_common(NinjaData.Resonators['lines'], item)
+        chaos_value,exalted_value = item_query_ninja_common(NinjaData.Resonators['lines'], item)
     elif item.Category == 'Essence':
-        return query_item_ninja_common(NinjaData.Essences['lines'], item)
+        chaos_value,exalted_value = item_query_ninja_common(NinjaData.Essences['lines'], item)
     elif item.Category == 'Card':
-        return query_item_ninja_common(NinjaData.DivinationCards['lines'], item)
+        chaos_value,exalted_value = item_query_ninja_common(NinjaData.DivinationCards['lines'], item)
     elif item.Category == 'Prophecy':
-        return query_item_ninja_common(NinjaData.Prophecies['lines'], item)
+        chaos_value,exalted_value = item_query_ninja_common(NinjaData.Prophecies['lines'], item)
     elif item.Category == 'Gem':
         for i in NinjaData.SkillGems['lines']:
             if i['name'] == item.Type and i['GemLevel'] == item.Gem_level and i['gemQuality'] == item.Quality and i['Corrupted'] == item.Corrupted:
                 return '{} chaos {} exalted'.format(i['chaosValue'], i['exaltedValue'])
     elif item.Category == 'BaseType':
-        pass
+        chaos_value,exalted_value = item_query_ninja_base(NinjaData.BaseTypes['lines'], item)
     elif item.Category == 'HelmetEnchant':
         pass
     elif item.Category == 'Map':
-        return query_item_ninja_map(NinjaData.Maps['lines'], NinjaData.UniqueMaps['lines'], item)
+        chaos_value,exalted_value = item_query_ninja_map(NinjaData.Maps['lines'], NinjaData.UniqueMaps['lines'], item)
     elif item.Category == 'Flask':
-        return query_item_ninja_common(NinjaData.UniqueFlasks['lines'], item)
-    elif item.Category == 'UniqueGear':
-        pass
+        chaos_value,exalted_value = item_query_ninja_common(NinjaData.UniqueFlasks['lines'], item)
+    elif item.Category == 'Unique':
+        chaos_value,exalted_value = item_query_ninja_unique(NinjaData.UniqueWeapons['lines'], NinjaData.UniqueArmours['lines'], NinjaData.UniqueAccessories['lines'], item)
     elif item.Category == 'Beast':
         pass
-    return 'Ninja not found'
+    
+    if chaos_value == 0:
+        return 'Not Found'
+    else:
+        if exalted_value > 1:
+            return '{} chaos {} exalted'.format(chaos_value, exalted_value)
+        else:
+            return '{} chaos'.format(chaos_value)
 
 
-def query_item_ninja_common(data, item):
+def item_query_ninja_common(data, item):
     if item.Type == 'Prophecy':
         item_name = item.Name
     else:
         item_name = item.Type
     for i in data:
         if i['name'] == item_name:
-            return '{} chaos {} exalted'.format(i['chaosValue'], i['exaltedValue'])
-    return 'Ninja not found'
+            return i['chaosValue'], i['exaltedValue']
+    return 0,0
 
 
-def query_item_ninja_map(data, Udata, item):
+def item_query_ninja_currency(data, item):
+    for i in data:
+        if i['currencyTypeName'] == item.Type:
+            return i['chaosEquivalent']
+    return 0
+
+
+def item_query_ninja_base(data, item):
+    if item.Item_level < 82:
+        return 0,0
+    elif item.Item_level > 85:
+        item_level = 86
+    else:
+        item_level = item.Item_level
+
+    if item.Influence:
+        if len(item.Influence)>1:
+            return 0,0
+        else:
+            item_variant = item.Influence[0]
+    else:
+        item_variant = ''
+        
+    for i in data:
+        if i['name'] == item.Type and i['levelRequired'] == item_level and i['variant'] == item_variant:
+                return i['chaosValue'], i['exaltedValue']
+    return 0,0
+
+
+def item_query_ninja_unique(Weapon, Armour, Accessory, item):
+    unique_data = [Weapon, Armour, Accessory]
+    if item.Links >4:
+        item_link = item.Links
+    else:
+        item_link = 0
+    for data in unique_data:
+        for i in data:
+            if i['name'] == item.Name and i['links'] == item_link:
+                return i['chaosValue'], i['exaltedValue']
+    return 0,0
+
+
+def item_query_ninja_map(Map, UniqueMap, item):
     if item.Rarity == 'Unique':
         map_name = item.Name
-        map_data = Udata
+        map_data = UniqueMap
     else:
         if item.Blighted_map:
             map_name = 'Blighted {}'.format(item.Type)
         else:
             map_name = item.Type
-        map_data = data
+        map_data = Map
     for i in map_data:
         if i['name'] == map_name and i['mapTier'] == item.Map_tier:
-            return '{} chaos {} exalted'.format(i['chaosValue'], i['exaltedValue'])
-    return 'Ninja not found'
+            return i['chaosValue'], i['exaltedValue']
+    return 0,0
 
 
 def is_fragment(item_type):
