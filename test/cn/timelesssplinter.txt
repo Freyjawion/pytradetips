@@ -1,0 +1,7 @@
+稀有度: 通货
+永久的瓦尔徽章碎片(Timeless Vaal Splinter)
+--------
+堆叠数: 17/100
+--------
+将 100 个碎片合成一个永久的瓦尔徽章(Timeless Vaal Emblem)。
+Shift + 左键来分割

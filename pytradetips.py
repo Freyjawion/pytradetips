@@ -178,7 +178,7 @@ def item_parser(content):
             elif content.startswith('稀有度'):
                 rarity = item_translate(header[0].split(':')[
                                         1], settings.dict_rarity)
-                if rarity in ('Rare,Unique'):
+                if rarity in ('Rare,Unique') and len(header) > 2:
                     name_line = header[1]
                     type_line = header[2]
                 else:
@@ -191,7 +191,7 @@ def item_parser(content):
                 else:
                     base_name = name_line
 
-                if '未鉴定' in content.splitlines():
+                if content.splitlines()[-1] == '未鉴定':
                     item.Category = 'unIdentified'
                 elif rarity == 'Currency':
                     item.Type = base_name
@@ -202,6 +202,8 @@ def item_parser(content):
                         item.Category = 'Resonator'
                     elif 'Essence' in item.Type:
                         item.Category = 'Essence'
+                    elif is_fragment(type_line):
+                        item.Category = 'Fragment'
                     else:
                         item.Category = 'Currency'
                 elif rarity == 'Card':
@@ -211,12 +213,16 @@ def item_parser(content):
                 elif rarity == 'Gem':
                     item.Name = ''
                     item.Category = 'Gem'
+                    item.Type = base_name
                     for line in content.splitlines():
-                        if line.startswith('【英文名：'):
+                        if line.startswith('【英文名：') and 'Vaal' in line:
                             item.Type = line[line.find(
                                 '：')+1:line.find('】')].strip()
                         elif line.startswith('等级:') and not item.Gem_level:
-                            item.Gem_level = int(line.split(':')[1].strip())
+                            temp = line.split(':')[1].strip()
+                            if '(' in temp:
+                                temp = temp.split('(')[0].strip()
+                            item.Gem_level = int(temp)
                         elif line.startswith('品质:'):
                             item.Quality = int(
                                 line[line.find('+')+1:line.find('%')].strip())
@@ -286,6 +292,8 @@ def item_parser(content):
                             item.Influence.append('Shaper')
                         elif line == '长老之物':
                             item.Influence.append('Elder')
+                        elif line == '圣战士物品':
+                            item.Influence.append('Crusader')
                         elif line == '总督军物品':
                             item.Influence.append('Warlord')
                         elif line == '审判官物品':
