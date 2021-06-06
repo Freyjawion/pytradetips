@@ -157,8 +157,11 @@ def item_query_ninja_gem(data, item):
     else:
         gem_quality = item.Quality
     for i in data:
-        if i['name'] == item.Type and i['gemLevel'] == item.Gem_level and i['gemQuality'] == gem_quality and i['corrupted'] == item.Corrupted:
-            return i['chaosValue'], i['exaltedValue']
+        try:
+            if i['name'] == item.Type and i['gemLevel'] == item.Gem_level and i['gemQuality'] == gem_quality and i['corrupted'] == item.Corrupted:
+                return i['chaosValue'], i['exaltedValue']
+        except KeyError:
+            pass
     return 0, 0
 
 

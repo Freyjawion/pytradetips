@@ -3,6 +3,7 @@
 
 import settings
 
+
 class ItemInfo():
     def __init__(self):
         self.Name = ''
@@ -11,14 +12,14 @@ class ItemInfo():
         self.Item_level = 0
         self.Rarity = ''
         self.Gem_level = 0
+        self.Gem_alternate_quality = 0
         self.Quality = 0
         self.Map_tier = 0
         self.GemSocket = ''
         self.Links = 0
         self.Sockets = 0
         self.AbyssalSockets = 0
-        self.Shaped_map = False
-        self.Elder_map = False
+        self.Elder_Map_occupied = 0
         self.Blighted_map = False
         self.Influence = []
         self.Shaper_influence = False
@@ -29,6 +30,7 @@ class ItemInfo():
         self.Warlord_influence = False
         self.Synthesised = False
         self.Corrupted = False
+
 
 def is_item(content):
     if content.startswith('Rarity') or content.startswith('物品类别'):
@@ -92,7 +94,17 @@ def item_parser(content):
                 elif rarity == 'Gem':
                     item.Name = ''
                     item.Category = 'Gem'
-                    item.Type = base_name
+                    if base_name == 'Anomalous':
+                        item.Gem_alternate_quality = '1'
+                        item.Type = name_line.split('(')[2].split(')')[0]
+                    elif base_name == 'Divergent':
+                        item.Gem_alternate_quality = '2'
+                        item.Type = name_line.split('(')[2].split(')')[0]
+                    elif base_name == 'Phantasmal':
+                        item.Gem_alternate_quality = '3'
+                        item.Type = name_line.split('(')[2].split(')')[0]
+                    else:
+                        item.Type = base_name
                     for line in content.splitlines():
                         if line.startswith('【英文名：') and 'Vaal' in line:
                             item.Type = line[line.find(
@@ -103,8 +115,14 @@ def item_parser(content):
                                 temp = temp.split('(')[0].strip()
                             item.Gem_level = int(temp)
                         elif line.startswith('品质:'):
-                            item.Quality = int(
+                            temp_quality = int(
                                 line[line.find('+')+1:line.find('%')].strip())
+                            if temp_quality < 20:
+                                item.Quality = 0
+                            elif temp_quality < 23:
+                                item.Quality = 20
+                            else:
+                                item.Quality = 23
                         elif line == '已腐化':
                             item.Corrupted = True
                 else:
@@ -143,6 +161,8 @@ def item_parser(content):
                         item.Type = 'Prophecy'
                     elif 'Scarab' in type_line:
                         item.Category = 'Scarab'
+                    elif 'Incubator' in type_line:
+                        item.Category = 'Incubator'
                     elif 'Flask' in type_line:
                         item.Category = 'Flask'
                     elif 'Map' in type_line:
@@ -168,6 +188,15 @@ def item_parser(content):
                             item.Synthesised = True
                         elif line.startswith('地图等阶:'):
                             item.Map_tier = int(line.split(':')[1].strip())
+                        elif '被长老守卫' in line:
+                            if 'The Enslaver' in line:
+                                item.Elder_Map_occupied = '1'
+                            elif 'The Eradicator' in line:
+                                item.Elder_Map_occupied = '2'
+                            elif 'The Constrictor' in line:
+                                item.Elder_Map_occupied = '3'
+                            elif 'The Purifier' in line:
+                                item.Elder_Map_occupied = '4'
                         elif line == '塑界之物':
                             item.Influence.append('Shaper')
                         elif line == '长老之物':
@@ -195,6 +224,8 @@ def item_keyword(item):
         keyword.append(item.Name)
     if item.Type:
         keyword.append(item.Type)
+    if item.Synthesised:
+        keyword.append('Synthesised')
     if item.Category == 'BaseType':
         keyword.append('Item Level : {}'.format(min(item.Item_level, 86)))
     if item.Gem_level:
@@ -203,6 +234,13 @@ def item_keyword(item):
         keyword.append('Map Tier : {}'.format(item.Map_tier))
     if item.Quality:
         keyword.append('Quality : {}%'.format(item.Quality))
+    if item.Gem_alternate_quality:
+        if item.Gem_alternate_quality == '1':
+            keyword.append('Anomalous')
+        elif item.Gem_alternate_quality == '2':
+            keyword.append('Divergent')
+        elif item.Gem_alternate_quality == '3':
+            keyword.append('Phantasmal')
     if item.GemSocket:
         if item.Links > 4 or item.Sockets == 6:
             keyword.append('{} ,{}S {}L'.format(
@@ -211,6 +249,8 @@ def item_keyword(item):
             keyword.append('Abyssal Socket : {}'.format(item.AbyssalSockets))
     if item.Blighted_map:
         keyword.append('Blighted Map')
+    if item.Elder_Map_occupied:
+        keyword.append('Elder Map')
     if item.Influence:
         for i in item.Influence:
             keyword.append('{} Item'.format(i))
@@ -229,6 +269,7 @@ def item_links(GemSocket):
 
 def item_translate(item_name, item_dict):
     return item_dict.get(item_name.strip())
+
 
 def is_fragment(item_type):
     if (

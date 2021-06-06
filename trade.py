@@ -32,6 +32,12 @@ def item_json(item):
             data['query']['filters']['type_filters']['filters']['rarity']['option'] = 'unique'
         if item.Blighted_map:
             data['query']['filters']['map_filters']['filters']['map_blighted']['option'] = True
+        if item.Elder_Map_occupied:
+            temp = AutoVivification()
+            temp['id'] = 'implicit.stat_3624393862'
+            temp['disable'] = False
+            temp['value']['option'] = item.Elder_Map_occupied
+            data['query']['stats'][0]['filters'].append(temp)
     elif item.Category == 'Flask' and item.Rarity == 'Magic':
         data['query']['term'] = item.Name
     elif item.Category == 'Gem':
@@ -41,6 +47,8 @@ def item_json(item):
             data['query']['filters']['misc_filters']['filters']['gem_level']['min'] = item.Gem_level
         if item.Quality:
             data['query']['filters']['misc_filters']['filters']['quality']['min'] = item.Quality
+        if item.Gem_alternate_quality:
+            data['query']['filters']['misc_filters']['filters']['gem_alternate_quality']['option'] = item.Gem_alternate_quality
     else:
         if item.Name:
             data['query']['name'] = item.Name
@@ -56,6 +64,8 @@ def item_json(item):
         data['query']['filters']['socket_filters']['filters']['sockets']['min'] = item.Sockets
     if item.AbyssalSockets:
         pass
+    if item.Synthesised:
+        data['query']['filters']['misc_filters']['filters']['synthesised_item']['true'] = item.Gem_alternate_quality
     if item.Influence:
         for i in item.Influence:
             data['query']['filters']['misc_filters']['filters']['{}_item'.format(

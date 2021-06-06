@@ -93,7 +93,7 @@ class PyTooltip(tk.Frame):
         self.parent.clipboard_clear()
         self.parent.clipboard_append(url_trade)
         print(text)
-        print()
+        print() 
         self.parent.after(100, self.watch_clipboard)
 
 
